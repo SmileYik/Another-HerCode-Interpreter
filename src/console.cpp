@@ -26,6 +26,7 @@ int main(int argc, char** args)
             }
         }
         in.close();
+        hercode_clear_sate(&state);
         return 0;
     }
 
@@ -49,5 +50,6 @@ int main(int argc, char** args)
             std::cout << ">> ";
         }
     }
+    hercode_clear_sate(&state);
     return 0;
 }
