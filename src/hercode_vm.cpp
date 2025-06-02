@@ -1,5 +1,7 @@
 #include "hercode_vm.h"
 #include <cstdint>
+#include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -57,25 +59,24 @@ bool hercode_eval(HercodeState *state, std::string code, std::string& error_msg)
     {
         if (state->function_line != 0) 
         {
-            state->functions[state->function_name] = std::vector<HercodeLine>();
-            std::vector<HercodeLine> &function = state->functions[state->function_name];
-            for (uint32_t i = state->function_line; i < state->total_line; ++i)
-            {
-                function.push_back(state->codes.at(i));
-            }
+            state->total_line += 1;
+            state->codes.push_back({
+                .line_num = state->total_line,
+                .code = code,
+                .type = HERCODE_LINE_TYPE_END,
+            });
+            state->functions[state->function_name] = {
+                state->function_line,
+                state->total_line
+            };
             state->function_line = 0;
             state->function_name = "";
         } else 
         {
-            error_msg = "没有方法等待关闭!";
+            error_msg = "错误(行 " + std::to_string(state->total_line + 1) + "): 没有方法等待关闭!";
             return true;
         }
-        state->total_line += 1;
-        state->codes.push_back({
-            .line_num = state->total_line,
-            .code = code,
-            .type = HERCODE_LINE_TYPE_END,
-        });
+        
 
         // if (state->functions.end() != state->functions.find(MAIN_FUNCTION))
         // {
@@ -89,12 +90,12 @@ bool hercode_eval(HercodeState *state, std::string code, std::string& error_msg)
         std::string str = code.substr(left, 8);
         if (str == "function") {
             if (size <= 10 && code[right] != ':') {
-                error_msg = "定义一个方法时, 必须以 `function 方法名:` 格式定义!";
+                error_msg = "错误(行 " + std::to_string(state->total_line + 1) + "): 定义一个方法时, 必须以 `function 方法名:` 格式定义!";
                 return true;
             }
             else if (state->function_line != 0)
             {
-                error_msg = "无法在一个方法定义内嵌套定义另一个方法!";
+                error_msg = "错误(行 " + std::to_string(state->total_line + 1) + "): 无法在一个方法定义内嵌套定义另一个方法!";
                 return true;
             }
             str = code.substr(left + 8, right - left - 9);
@@ -157,7 +158,7 @@ bool hercode_eval(HercodeState *state, std::string code, std::string& error_msg)
             return false;
         }
     }
-    error_msg = "不能识别代码: " + code;
+    error_msg = "错误(行 " + std::to_string(state->total_line + 1) + "): 不能识别代码: " + code;
     return true;
 }
 
@@ -175,7 +176,11 @@ bool hercode_eval_line(HercodeState *state, uint32_t line_num, std::string &erro
         }
         case HERCODE_LINE_TYPE_CALL_FUNCTION:
         {
-            return hercode_call_function(state, line.function, error_msg);
+            if (hercode_call_function(state, line.function, error_msg))
+            {
+                error_msg = "错误(行 " + std::to_string(line_num) + "): " + error_msg;
+                return true;
+            }
         }   
     }
     return false;
@@ -189,11 +194,12 @@ bool hercode_call_function(HercodeState *state, std::string function_name, std::
         return true;
     }
 
-    const std::vector<HercodeLine> &lines = state->functions[function_name];
-    for (auto begin = lines.cbegin(),
-              end   = lines.cend(); begin != end; ++begin)
+    const std::tuple<uint32_t, uint32_t> &func = state->functions[function_name];
+    
+    for (uint32_t begin = std::get<0>(func),
+                    end = std::get<1>(func); begin < end; ++begin)
     {
-        if (hercode_eval_line(state, begin->line_num, error_msg)) {
+        if (hercode_eval_line(state, begin, error_msg)) {
             return true;
         }
     }

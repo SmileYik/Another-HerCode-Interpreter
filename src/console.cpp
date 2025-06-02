@@ -23,6 +23,7 @@ int main(int argc, char** args)
             if (hercode_eval(&state, line, error_msg))
             {
                 std::cerr << error_msg << std::endl;
+                break;
             }
         }
         in.close();

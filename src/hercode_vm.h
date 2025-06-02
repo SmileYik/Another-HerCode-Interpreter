@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <string>
 #include <cstring>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -17,7 +18,7 @@ struct HercodeLine;
 
 struct HercodeState 
 {
-    std::unordered_map<std::string, std::vector<HercodeLine>> functions;
+    std::unordered_map<std::string, std::tuple<uint32_t, uint32_t>> functions;
     std::vector<HercodeLine> codes;
     uint32_t stack_ptr;
     uint32_t total_line;
